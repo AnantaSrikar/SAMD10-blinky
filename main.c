@@ -40,8 +40,8 @@
 
 HAL_GPIO_PIN(LED,      A, 9)
 HAL_GPIO_PIN(BUTTON,   A, 25)
-HAL_GPIO_PIN(UART_TX,  A, 10)
-HAL_GPIO_PIN(UART_RX,  A, 11)
+HAL_GPIO_PIN(UART_TX,  A, 14)
+HAL_GPIO_PIN(UART_RX,  A, 15)
 
 //-----------------------------------------------------------------------------
 static void timer_set_period(uint16_t i)

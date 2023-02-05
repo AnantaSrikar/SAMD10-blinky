@@ -5,7 +5,7 @@ BIN = Demo
 ##############################################################################
 .PHONY: all directory clean size
 
-CC = arm-none-eabi-gcc
+CC = arm-none-eabi-gcc -g3
 OBJCOPY = arm-none-eabi-objcopy
 SIZE = arm-none-eabi-size
 
@@ -35,9 +35,9 @@ SRCS += \
   ../startup_samd10.c
 
 DEFINES += \
-  -D__SAMD10D14AM__ \
+  -D__SAMD10C13A__ \
   -DDONT_USE_CMSIS_INIT \
-  -DF_CPU=8000000 
+  -DF_CPU=8000000
 
 CFLAGS += $(INCLUDES) $(DEFINES)
 
