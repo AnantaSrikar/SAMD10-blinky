@@ -5,7 +5,7 @@ BIN = Demo
 ##############################################################################
 .PHONY: all directory clean size
 
-CC = arm-none-eabi-gcc -g3
+CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
 SIZE = arm-none-eabi-size
 
@@ -15,6 +15,9 @@ else
   MKDIR = mkdir
 endif
 
+
+# For gdb
+CFLAGS += -g3
 CFLAGS += -W -Wall --std=gnu99 -Os
 CFLAGS += -fno-diagnostics-show-caret
 CFLAGS += -fdata-sections -ffunction-sections

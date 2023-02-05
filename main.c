@@ -38,13 +38,14 @@
 #define PERIOD_FAST     100
 #define PERIOD_SLOW     500
 
-HAL_GPIO_PIN(LED,      A, 9)
-HAL_GPIO_PIN(BUTTON,   A, 25)
-HAL_GPIO_PIN(UART_TX,  A, 14)
-HAL_GPIO_PIN(UART_RX,  A, 15)
+HAL_GPIO_PIN(LED,      A, 5)
+HAL_GPIO_PIN(UART_TX,  A, 8)
+HAL_GPIO_PIN(UART_RX,  A, 9)
 
 //-----------------------------------------------------------------------------
-static void timer_set_period(uint16_t i)
+
+// Timer for LED blinky
+static void timer1_set_period(uint16_t i)
 {
   TC1->COUNT16.CC[0].reg = (F_CPU / 1000ul / 256) * i;
   TC1->COUNT16.COUNT.reg = 0;
@@ -61,7 +62,7 @@ void irq_handler_tc1(void)
 }
 
 //-----------------------------------------------------------------------------
-static void timer_init(void)
+static void timer1_init(void)
 {
   PM->APBCMASK.reg |= PM_APBCMASK_TC1;
 
@@ -73,7 +74,7 @@ static void timer_init(void)
 
   TC1->COUNT16.COUNT.reg = 0;
 
-  timer_set_period(PERIOD_SLOW);
+  timer1_set_period(PERIOD_SLOW);
 
   TC1->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
 
@@ -91,28 +92,28 @@ static void uart_init(uint32_t baud)
   HAL_GPIO_UART_RX_in();
   HAL_GPIO_UART_RX_pmuxen(PORT_PMUX_PMUXE_C_Val);
 
-  PM->APBCMASK.reg |= PM_APBCMASK_SERCOM0;
+  PM->APBCMASK.reg |= PM_APBCMASK_SERCOM1;
 
-  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(SERCOM0_GCLK_ID_CORE) |
+  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(SERCOM1_GCLK_ID_CORE) |
       GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN(0);
 
-  SERCOM0->USART.CTRLA.reg =
+  SERCOM1->USART.CTRLA.reg =
       SERCOM_USART_CTRLA_DORD | SERCOM_USART_CTRLA_MODE_USART_INT_CLK |
       SERCOM_USART_CTRLA_RXPO(3/*PAD3*/) | SERCOM_USART_CTRLA_TXPO(1/*PAD2*/);
 
-  SERCOM0->USART.CTRLB.reg = SERCOM_USART_CTRLB_RXEN | SERCOM_USART_CTRLB_TXEN |
+  SERCOM1->USART.CTRLB.reg = SERCOM_USART_CTRLB_RXEN | SERCOM_USART_CTRLB_TXEN |
       SERCOM_USART_CTRLB_CHSIZE(0/*8 bits*/);
 
-  SERCOM0->USART.BAUD.reg = (uint16_t)br+1;
+  SERCOM1->USART.BAUD.reg = (uint16_t)br+1;
 
-  SERCOM0->USART.CTRLA.reg |= SERCOM_USART_CTRLA_ENABLE;
+  SERCOM1->USART.CTRLA.reg |= SERCOM_USART_CTRLA_ENABLE;
 }
 
 //-----------------------------------------------------------------------------
 static void uart_putc(char c)
 {
-  while (!(SERCOM0->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE));
-  SERCOM0->USART.DATA.reg = c;
+  while (!(SERCOM1->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE));
+  SERCOM1->USART.DATA.reg = c;
 }
 
 //-----------------------------------------------------------------------------
@@ -120,6 +121,44 @@ static void uart_puts(char *s)
 {
   while (*s)
     uart_putc(*s++);
+}
+
+// Timer2 for UART UART logging
+static void timer2_set_period(uint16_t i)
+{
+  TC2->COUNT16.CC[0].reg = (F_CPU / 1000ul / 256) * i;
+  TC2->COUNT16.COUNT.reg = 0;
+}
+
+// Timer2 init
+static void timer2_init(void)
+{
+  PM->APBCMASK.reg |= PM_APBCMASK_TC2;
+
+  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(TC2_GCLK_ID) |
+      GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN(0);
+
+  TC2->COUNT16.CTRLA.reg = TC_CTRLA_MODE_COUNT16 | TC_CTRLA_WAVEGEN_MFRQ |
+      TC_CTRLA_PRESCALER_DIV256 | TC_CTRLA_PRESCSYNC_RESYNC;
+
+  TC2->COUNT16.COUNT.reg = 0;
+
+  timer2_set_period(PERIOD_SLOW);
+
+  TC2->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+
+  TC2->COUNT16.INTENSET.reg = TC_INTENSET_MC(1);
+  NVIC_EnableIRQ(TC2_IRQn);
+}
+
+// Function to run the timer 2 interrupt request
+void irq_handler_tc2(void)
+{
+  if (TC2->COUNT16.INTFLAG.reg & TC_INTFLAG_MC(1))
+  {
+    uart_puts("\r\nNew Timer working perfectly\n\r");
+    TC2->COUNT16.INTFLAG.reg = TC_INTFLAG_MC(1);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -132,35 +171,19 @@ static void sys_init(void)
 //-----------------------------------------------------------------------------
 int main(void)
 {
-  uint32_t cnt = 0;
-  bool fast = false;
-
   sys_init();
-  timer_init();
-  uart_init(38400); // mEDBG can't handle 115200
+  timer1_init();
+  uart_init(115200);
+
+  timer2_init();
 
   uart_puts("\r\nHello, world!\r\n");
 
   HAL_GPIO_LED_out();
   HAL_GPIO_LED_clr();
 
-  HAL_GPIO_BUTTON_in();
-  HAL_GPIO_BUTTON_pullup();
-
-  while (1)
-  {
-    if (HAL_GPIO_BUTTON_read())
-      cnt = 0;
-    else if (cnt < 5001)
-      cnt++;
-
-    if (5000 == cnt)
-    {
-      fast = !fast;
-      timer_set_period(fast ? PERIOD_FAST : PERIOD_SLOW);
-      uart_putc('.');
-    }
-  }
+  // The infinite loop
+  while(true);
 
   return 0;
 }
