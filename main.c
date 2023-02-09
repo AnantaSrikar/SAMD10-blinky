@@ -39,8 +39,8 @@
 #define PERIOD_SLOW     500
 
 HAL_GPIO_PIN(LED,      A, 5)
-HAL_GPIO_PIN(UART_TX,  A, 8)
-HAL_GPIO_PIN(UART_RX,  A, 9)
+HAL_GPIO_PIN(UART_TX,  A, 14)
+HAL_GPIO_PIN(UART_RX,  A, 15)
 
 //-----------------------------------------------------------------------------
 
@@ -92,28 +92,28 @@ static void uart_init(uint32_t baud)
   HAL_GPIO_UART_RX_in();
   HAL_GPIO_UART_RX_pmuxen(PORT_PMUX_PMUXE_C_Val);
 
-  PM->APBCMASK.reg |= PM_APBCMASK_SERCOM1;
+  PM->APBCMASK.reg |= PM_APBCMASK_SERCOM0;
 
-  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(SERCOM1_GCLK_ID_CORE) |
+  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(SERCOM0_GCLK_ID_CORE) |
       GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN(0);
 
-  SERCOM1->USART.CTRLA.reg =
+  SERCOM0->USART.CTRLA.reg =
       SERCOM_USART_CTRLA_DORD | SERCOM_USART_CTRLA_MODE_USART_INT_CLK |
-      SERCOM_USART_CTRLA_RXPO(3/*PAD3*/) | SERCOM_USART_CTRLA_TXPO(1/*PAD2*/);
+      SERCOM_USART_CTRLA_RXPO(1/*PAD1*/) | SERCOM_USART_CTRLA_TXPO(0/*PAD0*/);
 
-  SERCOM1->USART.CTRLB.reg = SERCOM_USART_CTRLB_RXEN | SERCOM_USART_CTRLB_TXEN |
+  SERCOM0->USART.CTRLB.reg = SERCOM_USART_CTRLB_RXEN | SERCOM_USART_CTRLB_TXEN |
       SERCOM_USART_CTRLB_CHSIZE(0/*8 bits*/);
 
-  SERCOM1->USART.BAUD.reg = (uint16_t)br+1;
+  SERCOM0->USART.BAUD.reg = (uint16_t)br+1;
 
-  SERCOM1->USART.CTRLA.reg |= SERCOM_USART_CTRLA_ENABLE;
+  SERCOM0->USART.CTRLA.reg |= SERCOM_USART_CTRLA_ENABLE;
 }
 
 //-----------------------------------------------------------------------------
 static void uart_putc(char c)
 {
-  while (!(SERCOM1->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE));
-  SERCOM1->USART.DATA.reg = c;
+  while (!(SERCOM0->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE));
+  SERCOM0->USART.DATA.reg = c;
 }
 
 //-----------------------------------------------------------------------------
